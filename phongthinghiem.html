@@ -1,0 +1,360 @@
+<!-- /index.html  –  Phòng Thí Nghiệm Chuyển Thể (smooth-from-0K) -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🔬 Phòng Thí Nghiệm Chuyển Thể</title>
+<style>
+    .temp-slider {
+  width: 100%; 
+  height: 26px; 
+  border-radius: 14px;
+  margin: 16px 0;
+}
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:linear-gradient(135deg,#0f172a,#1e293b 50%,#334155);
+    color:#fff;min-height:100vh;padding:20px
+  }
+  .container{max-width:1600px;margin:0 auto}
+  .header{text-align:center;margin-bottom:20px;background:rgba(255,255,255,.08);padding:22px;border-radius:16px;backdrop-filter:blur(10px)}
+  .header h1{font-size:2.4rem;background:linear-gradient(45deg,#60a5fa,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .main{display:grid;grid-template-columns:320px 1fr 320px;gap:18px;height:80vh}
+  .panel{background:rgba(255,255,255,.08);border-radius:16px;padding:22px;backdrop-filter:blur(8px)}
+  .canvas-wrap{background:rgba(0,0,0,.45);border-radius:16px;padding:16px;position:relative;overflow:hidden}
+  .canvas{width:100%;height:100%;position:relative;border-radius:12px;overflow:hidden;
+    border:3px solid rgba(255,255,255,.35);background:radial-gradient(1200px 600px at 70% 30%,rgba(255,255,255,.06),transparent)}
+  .particle{position:absolute;width:14px;height:14px;border-radius:50%;
+    box-shadow:0 0 10px rgba(255,255,255,.6);transition:background-color .45s ease, opacity .3s ease}
+  .controls h3{margin:8px 0 10px;font-weight:700}
+  .substance-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .substance-btn{padding:10px 12px;border-radius:12px;border:0;background:#0ea5e9;color:#fff;font-weight:600;cursor:pointer}
+  .substance-btn.active{background:#22d3ee;color:#0b1220}
+  .temp-slider{width:100%;height:22px;border-radius:12px;
+    background:linear-gradient(90deg,#1e3a8a,#3b82f6,#06b6d4,#f59e0b,#ef4444);outline:none;-webkit-appearance:none;margin:12px 0}
+  .temp-slider::-webkit-slider-thumb{appearance:none;width:44px;height:44px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 6px 12px rgba(0,0,0,.55)}
+  .value-row{display:flex;align-items:center;gap:10px}
+  .value{font-weight:700}
+  .toggle{border:0;background:#334155;color:#e2e8f0;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .phase-indicators{margin-top:14px;display:grid;gap:8px}
+  .phase-indicator{padding:10px;border-radius:10px;background:rgba(255,255,255,.08);font-weight:700;text-align:center;opacity:.6;transition:.25s}
+  .phase-indicator.active{opacity:1;transform:translateZ(0) scale(1.02);
+    box-shadow:0 0 18px var(--glow, #fff), inset 0 0 12px rgba(255,255,255,.15)}
+  #solidPhase.active{--glow:#60a5fa}
+  #liquidPhase.active{--glow:#22d3ee}
+  #gasPhase.active{--glow:#fb923c}
+  .info p{opacity:.9;margin:4px 0}
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔬 Phòng Thí Nghiệm Mô Phỏng Chuyển Thể</h1>
+      <div>Quan sát sự chuyển thể của các chất</div>
+    </div>
+
+    <div class="main">
+      <div class="panel controls">
+        <h3>🧪 Chọn chất</h3>
+        <div class="substance-buttons">
+          <button class="substance-btn active" data-material="water">💧 Nước</button>
+          <button class="substance-btn" data-material="iron">🔩 Sắt</button>
+          <button class="substance-btn" data-material="neon">⚡ Neon</button>
+          <button class="substance-btn" data-material="alcohol">🍃 Rượu</button>
+        </div>
+
+        <h3>🌡️ Nhiệt độ</h3>
+        <input id="tempSlider" class="temp-slider" type="range" min="0" max="4000" step="5" value="300" />
+        <div class="value-row">
+          <span class="value" id="tempDisplay">300 K</span>
+          <button id="unitSwitch" class="toggle">Đổi sang °C</button>
+        </div>
+
+        <div class="phase-indicators">
+          <div class="phase-indicator active" id="solidPhase">Rắn</div>
+          <div class="phase-indicator" id="liquidPhase">Lỏng</div>
+          <div class="phase-indicator" id="gasPhase">Khí</div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <div id="simulationCanvas" class="canvas"></div>
+      </div>
+
+      <div class="panel info">
+        <h2>📊 Thông tin</h2>
+        <div id="materialInfo"></div>
+        <div id="phaseText" style="margin-top:8px;font-weight:700"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+    
+/* ======= Cấu hình vật chất ======= */
+const materials = {
+  iron:   {name:'Sắt (Fe)',    meltingPoint:1811, boilingPoint:3134, color:'#CD853F', info:'Kim loại dẫn điện tốt'},
+  water:  {name:'Nước (H₂O)',  meltingPoint:273,  boilingPoint:373,  color:'#00BFFF', info:'Lỏng trong suốt'},
+  neon:   {name:'Neon (Ne)',   meltingPoint:24,   boilingPoint:27,   color:'#FF4500', info:'Khí hiếm'},
+  alcohol:{name:'Ethanol',     meltingPoint:159,  boilingPoint:351,  color:'#32CD32', info:'Lỏng dễ bay hơi'}
+};
+
+let currentMaterial = 'water';
+let temperature = 300; // K
+let tempUnit = 'K';
+let particles = [];
+let animationId = null;
+
+/* ======= Tham số mượt hóa (why: để không “giật” khi tăng từ 0K) ======= */
+const TAU_ENERGY = 0.6;   // s – thời hằng mượt năng lượng
+const TAU_SETTLE = 0.45;  // s – thời hằng mượt bám mạng
+const K_ATTRACT   = 6.0;  // 1/s – lực hút về vị trí mạng
+const AMP_MAX     = 7.0;  // px – biên độ dao động tối đa pha rắn (đủ nổi bật nhưng không vọt)
+const G           = 0.35; // “trọng lực” cho lỏng
+const AIR_RAND    = 2.0;  // cường độ ngẫu nhiên cơ sở cho khí
+
+/* ======= Tiện ích ======= */
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function lighten(color, pc){
+  const num=parseInt(color.replace('#',''),16), amt=Math.round(2.55*pc);
+  const R=(num>>16)+amt, Gc=(num>>8&255)+amt, B=(num&255)+amt;
+  return '#'+(0x1000000+(clamp(R,0,255)<<16)+(clamp(Gc,0,255)<<8)+clamp(B,0,255)).toString(16).slice(1);
+}
+
+/* ======= Phân tử ======= */
+class Particle{
+  constructor(x,y,material){
+    this.x=x; this.y=y;
+    this.targetX=x; this.targetY=y;
+    this.vx=0; this.vy=0;
+    this.material=material;
+
+   
+    this.energy=0;   
+    this.settle=1;   
+    this.noiseX=0;   
+    this.noiseY=0;   
+
+    this.el=document.createElement('div');
+    this.el.className='particle';
+    this.el.style.backgroundColor=materials[material].color;
+    document.getElementById('simulationCanvas').appendChild(this.el);
+    this.render();
+  }
+  render(){
+    this.el.style.left=this.x+'px';
+    this.el.style.top=this.y+'px';
+  }
+  update(dt){
+    const mat = materials[this.material];
+    const Tm = mat.meltingPoint, Tb = mat.boilingPoint;
+
+    // 0 K: đứng yên tuyệt đối
+    if(temperature === 0){
+      this.x = this.targetX; this.y = this.targetY;
+      this.vx = this.vy = 0; this.noiseX = this.noiseY = 0;
+      this.energy = 0; this.settle = 1;
+      this.el.style.opacity = 1;
+      this.render();
+      return;
+    }
+
+    // Năng lượng mục tiêu (ease-in để không vọt lúc mới tăng): ~ (T/Tm)^2
+    const eTargetLinear = clamp(Tm>0 ? (temperature/Tm) : (temperature/1000), 0, 1);
+    const eTarget = eTargetLinear*eTargetLinear; // ease-in
+    const aE = 1 - Math.exp(-dt/TAU_ENERGY);
+    this.energy += (eTarget - this.energy) * aE;
+
+    // Settle mục tiêu theo pha (và mượt theo thời gian)
+    const targetSettle = temperature <= Tm ? 1 : 0;
+    const aS = 1 - Math.exp(-dt/TAU_SETTLE);
+    this.settle += (targetSettle - this.settle) * aS;
+
+    // Xác định pha thô
+    const phase = (temperature > Tb) ? 'gas' : (temperature > Tm ? 'liquid' : 'solid');
+
+    if(phase === 'solid'){
+      // Hút về nút mạng theo thời gian (frame-rate independent)
+      const attract = 1 - Math.exp(-K_ATTRACT * this.settle * dt);
+      this.x += (this.targetX - this.x) * attract;
+      this.y += (this.targetY - this.y) * attract;
+
+      // Dao động hỗn độn nhưng mượt: nhiễu low-pass, tần số tăng theo energy
+      const hz = 2 + 10 * this.energy;               // 2..12 Hz
+      const aN = 1 - Math.exp(-dt * hz);
+      const rndX = (Math.random()*2 - 1);
+      const rndY = (Math.random()*2 - 1);
+      this.noiseX += (rndX - this.noiseX) * aN;
+      this.noiseY += (rndY - this.noiseY) * aN;
+
+      // Biên độ tăng dần chậm (energy^2) để không bật max sớm
+      const amp = AMP_MAX * this.energy;
+      this.x += this.noiseX * amp;
+      this.y += this.noiseY * amp;
+
+      // Glow nhẹ theo energy (đẹp nhưng không chói)
+      const glow = 6 + 20 * this.energy;
+      this.el.style.boxShadow = `0 0 ${glow}px rgba(255,255,255,.45)`;
+      this.el.style.backgroundColor = mat.color;
+      this.el.style.opacity = 1;
+    }
+    else if(phase === 'liquid'){
+      // Dòng chảy + gravity; cường độ ngẫu nhiên mượt theo energy
+      const flow = 0.25 + 1.3 * this.energy;
+      this.vy += G;                  // rơi
+      this.vx += (Math.random()-0.5) * flow;
+      this.vx *= 0.92; this.vy *= 0.985;
+
+      this.x += this.vx; this.y += this.vy;
+
+      // Nằm đáy bình
+      const H = canvasEl.offsetHeight, W = canvasEl.offsetWidth;
+      const r = 14; // ~ đường kính hạt
+      if(this.y > H - r){ this.y = H - r; this.vy = 0; }
+      if(this.x < 0){ this.x = 0; this.vx *= -0.3; }
+      if(this.x > W - r){ this.x = W - r; this.vx *= -0.3; }
+
+      this.el.style.backgroundColor = lighten(mat.color, 18);
+      this.el.style.opacity = 0.95;
+    }
+    else{ // gas
+      // Hỗn loạn tăng dần mượt theo (T - Tb)
+      const over = clamp((temperature - Tb) / Math.max(1,(4000 - Tb)), 0, 1);
+      const scale = 1 + 3.5 * over; // 1..4.5
+      this.vx += (Math.random()-0.5) * AIR_RAND * scale;
+      this.vy += (Math.random()-0.5) * AIR_RAND * scale;
+      this.vx *= 0.995; this.vy *= 0.995;
+      this.x += this.vx; this.y += this.vy;
+
+      const W = canvasEl.offsetWidth, H = canvasEl.offsetHeight, r=14;
+      if(this.x < 0){ this.x = 0; this.vx *= -0.85; }
+      if(this.x > W - r){ this.x = W - r; this.vx *= -0.85; }
+      if(this.y < 0){ this.y = 0; this.vy *= -0.85; }
+      if(this.y > H - r){ this.y = H - r; this.vy *= -0.85; }
+
+      const glow = 8 + 14 * this.energy;
+      this.el.style.boxShadow = `0 0 ${glow}px rgba(255,255,255,.35)`;
+      this.el.style.backgroundColor = lighten(mat.color, 38);
+      this.el.style.opacity = 0.9;
+    }
+
+    this.render();
+  }
+}
+
+/* ======= Khởi tạo lưới mạng tinh thể giữa bình ======= */
+const canvasEl = document.getElementById('simulationCanvas');
+function resetParticles(){
+  clearParticles();
+  const cols=12, rows=8, dx=42, dy=42;
+  const startX=(canvasEl.offsetWidth - cols*dx)/2;
+  const startY=(canvasEl.offsetHeight - rows*dy)/2;
+  for(let i=0;i<rows;i++){
+    for(let j=0;j<cols;j++){
+      const x=Math.random()*canvasEl.offsetWidth;
+      const y=Math.random()*canvasEl.offsetHeight;
+      const p=new Particle(x,y,currentMaterial);
+      p.targetX = startX + j*dx;
+      p.targetY = startY + i*dy;
+
+      // Đồng bộ ban đầu theo nhiệt hiện tại (why: tránh bước nhảy ban đầu)
+      const mat = materials[currentMaterial];
+      const e0 = clamp(mat.meltingPoint>0 ? (temperature/mat.meltingPoint) : (temperature/1000), 0, 1);
+      p.energy = e0*e0;
+      p.settle = (temperature <= mat.meltingPoint) ? 1 : 0;
+      particles.push(p);
+    }
+  }
+}
+function clearParticles(){
+  particles.forEach(p=>p.el.remove());
+  particles.length = 0;
+  if(animationId) cancelAnimationFrame(animationId);
+}
+
+/* ======= Vòng lặp thời gian thực với dt (why: độc lập FPS, siêu mượt) ======= */
+function startLoop(){
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.05, (now - last)/1000); // clamp để tránh spike
+    last = now;
+    particles.forEach(p=>p.update(dt));
+    animationId = requestAnimationFrame(frame);
+  }
+  animationId = requestAnimationFrame(frame);
+}
+
+/* ======= UI ======= */
+const tempSlider = document.getElementById('tempSlider');
+const tempDisplay= document.getElementById('tempDisplay');
+const unitSwitch = document.getElementById('unitSwitch');
+const materialInfo = document.getElementById('materialInfo');
+const phaseText = document.getElementById('phaseText');
+
+function updatePhaseIndicators(){
+  const mat = materials[currentMaterial];
+  let phase='Rắn', icon='🧊', desc='Dao động quanh vị trí cân bằng';
+  if(temperature > mat.boilingPoint){ phase='Khí'; icon='💨'; desc='Chuyển động hỗn loạn '; }
+  else if(temperature > mat.meltingPoint){ phase='Lỏng'; icon='💧'; desc='giao động quanh vị trí cân bằng không cố định'; }
+  phaseText.textContent = `${icon} ${phase} — ${desc}`;
+  document.getElementById('solidPhase').classList.toggle('active', phase==='Rắn');
+  document.getElementById('liquidPhase').classList.toggle('active', phase==='Lỏng');
+  document.getElementById('gasPhase').classList.toggle('active', phase==='Khí');
+}
+function updateMaterialInfo(){
+  const m = materials[currentMaterial];
+  materialInfo.innerHTML = `
+    <p><b>${m.name}</b></p>
+    <p>Điểm nóng chảy: ${m.meltingPoint} K</p>
+    <p>Điểm sôi: ${m.boilingPoint} K</p>
+    <p>${m.info}</p>`;
+}
+function updateTempDisplay(){
+  if(tempUnit==='K') tempDisplay.textContent = `${temperature} K`;
+  else tempDisplay.textContent = `${temperature - 273} °C`;
+}
+
+tempSlider.addEventListener('input', e=>{
+  temperature = parseInt(e.target.value,10);
+  updateTempDisplay();
+  updatePhaseIndicators();
+});
+unitSwitch.addEventListener('click', ()=>{
+  if(tempUnit==='K'){ tempUnit='C'; unitSwitch.textContent='Đổi sang K'; }
+  else { tempUnit='K'; unitSwitch.textContent='Đổi sang °C'; }
+  updateTempDisplay();
+});
+document.querySelectorAll('.substance-btn').forEach(btn=>{
+  btn.addEventListener('click', e=>{
+    document.querySelectorAll('.substance-btn').forEach(b=>b.classList.remove('active'));
+    e.currentTarget.classList.add('active');
+    currentMaterial = e.currentTarget.dataset.material;
+    updateMaterialInfo();
+    resetParticles();
+    startLoop();
+    updatePhaseIndicators();
+  });
+});
+
+updateMaterialInfo();
+resetParticles();
+startLoop();
+updatePhaseIndicators();
+updateTempDisplay();
+
+window.addEventListener('resize', ()=>{
+  const cols=12, rows=8, dx=42, dy=42;
+  const startX=(canvasEl.offsetWidth - cols*dx)/2;
+  const startY=(canvasEl.offsetHeight - rows*dy)/2;
+  particles.forEach((p, idx)=>{
+    const i = Math.floor(idx/cols), j = idx%cols;
+    p.targetX = startX + j*dx;
+    p.targetY = startY + i*dy;
+  });
+});
+</script>
+</body>
+</html>
